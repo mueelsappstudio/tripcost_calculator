@@ -21,45 +21,50 @@ class TimeInput extends StatefulWidget {
 }
 
 class _TimeInputState extends State<TimeInput> {
-  late TextEditingController _hrCtrl;
-  late TextEditingController _minCtrl;
+  final TextEditingController _hrCtrl = TextEditingController();
+  final TextEditingController _minCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _updateControllers();
+    _syncControllersWithType();
   }
 
   @override
   void didUpdateWidget(TimeInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.totalMinutes != widget.totalMinutes) {
-      // Sync with external changes only if the value actually changed logic
-      // Ideally, we check focus, but for this app complexity, this is fine.
-      _updateControllers();
+      _syncControllersWithType();
     }
   }
 
-  void _updateControllers() {
-    int h = (widget.totalMinutes / 60).floor();
-    int m = widget.totalMinutes % 60;
-
-    // Only update text if it doesn't match to avoid cursor jumping if user is typing
-    if (_hrCtrlIsDifferent(h)) {
-      _hrCtrl = TextEditingController(text: h == 0 ? '' : h.toString());
-    } else {
-      // Fallback for init
-      _hrCtrl = TextEditingController(text: h == 0 ? '' : h.toString());
-    }
-
-    _minCtrl = TextEditingController(text: m == 0 ? '' : m.toString());
+  @override
+  void dispose() {
+    _hrCtrl.dispose();
+    _minCtrl.dispose();
+    super.dispose();
   }
 
-  bool _hrCtrlIsDifferent(int h) {
-    try {
-      return int.parse(_hrCtrl.text) != h;
-    } catch (e) {
-      return true;
+  void _syncControllersWithType() {
+    int currentH = int.tryParse(_hrCtrl.text) ?? 0;
+    int currentM = int.tryParse(_minCtrl.text) ?? 0;
+    int totalCurrent = (currentH * 60) + currentM;
+
+    if (totalCurrent != widget.totalMinutes) {
+      int h = (widget.totalMinutes / 60).floor();
+      int m = widget.totalMinutes % 60;
+
+      if (h == 0 && _hrCtrl.text.isEmpty) {
+        // keep empty
+      } else {
+        _hrCtrl.text = h == 0 ? "" : h.toString();
+      }
+
+      if (m == 0 && _minCtrl.text.isEmpty) {
+        // keep empty
+      } else {
+        _minCtrl.text = m == 0 ? "" : m.toString();
+      }
     }
   }
 
@@ -93,13 +98,9 @@ class _TimeInputState extends State<TimeInput> {
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(
-              child: _buildField(_hrCtrl, "Hr"),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildField(_minCtrl, "Min"),
-            ),
+            Expanded(child: _buildField(_hrCtrl, "Hr")),
+            const SizedBox(width: 8), // Reduced gap
+            Expanded(child: _buildField(_minCtrl, "Min")),
           ],
         ),
       ],
@@ -109,37 +110,42 @@ class _TimeInputState extends State<TimeInput> {
   Widget _buildField(TextEditingController ctrl, String suffix) {
     return Stack(
       children: [
-        TextFormField(
-          controller: ctrl,
-          onChanged: (_) => _handleInput(),
-          style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMain),
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            hintText: "0",
-            hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
-            filled: true,
-            fillColor: AppColors.inputBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.inputBackground,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextFormField(
+            controller: ctrl,
+            onChanged: (_) => _handleInput(),
+            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMain),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              hintText: "0",
+              hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              ),
+              // FIX IS HERE: Reduced padding significantly to allow numbers to fit
+              contentPadding: const EdgeInsets.only(left: 10, right: 30, top: 14, bottom: 14),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.only(left: 16, right: 40, top: 14, bottom: 14),
           ),
         ),
         Positioned(
-          right: 12,
+          right: 8, // Moved closer to edge
           top: 0,
           bottom: 0,
           child: Center(
             child: Text(
               suffix.toUpperCase(),
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 9, // Slightly smaller font for label
                 fontWeight: FontWeight.bold,
                 color: AppColors.textSecondary,
               ),
